@@ -52,12 +52,16 @@ app.post('/send-cart-otp', async(req,res)=>{
 
  OTP["cart_"+phone]=otp
 
- await axios.get(process.env.SMS_URL,{
-   params:{
-    numbers:phone,
-    message:`Skypper OTP ${otp}`
-   }
- })
+ await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+ route:"otp",
+ numbers:phone,
+ message:`Skypper OTP is ${otp}`
+},{
+ headers:{
+  authorization:process.env.SMS_API_KEY,
+  "Content-Type":"application/json"
+ }
+})
 
  res.json({success:true})
 })
@@ -88,3 +92,4 @@ app.post('/verify',bodyParser.json(),async(req,res)=>{
 
 
 app.listen(10000)
+
