@@ -63,7 +63,7 @@ app.post('/webhook/order', async(req,res)=>{
 })
 
 /* CART OTP */
-app.post('/apps/otp/send-cart-otp', async(req,res)=>{
+app.post('/send-cart-otp', async(req,res)=>{
 
  const phone=req.body.phone
  if(!phone || phone.length!==10){
@@ -92,7 +92,7 @@ app.post('/apps/otp/send-cart-otp', async(req,res)=>{
 })
 
 /* VERIFY */
-app.post('/apps/otp/verify', async(req,res)=>{
+app.post('/verify', async(req,res)=>{
 
  const {phone,otp,order_id}=req.body
 
@@ -125,6 +125,7 @@ app.post('/apps/otp/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
