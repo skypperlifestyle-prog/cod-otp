@@ -45,19 +45,17 @@ app.post('/webhook/order', async(req,res)=>{
 
  OTP[order.id]={otp,time:Date.now()}
 
- await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"v3",
-  sender_id:"FSTSMS",
-  message:`Your Skypper OTP is ${otp}`,
-  language:"english",
-  flash:0,
-  numbers:phone
- },{
+await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+  route:"otp",
+  variables_values: otp,
+  numbers: phone,
+  template_id: "1201175350686304903"
+},{
   headers:{
-   authorization:process.env.SMS_API_KEY,
-   "Content-Type":"application/json"
+    authorization: process.env.SMS_API_KEY,
+    "Content-Type":"application/json"
   }
- })
+});
 
  res.sendStatus(200)
 })
@@ -137,6 +135,7 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
