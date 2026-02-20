@@ -63,8 +63,7 @@ app.post('/webhook/order', async(req,res)=>{
 })
 
 /* CART OTP */
-app.post('/apps/otp/send-cart-otp', async(req,res)=>{
-
+app.post('/send-cart-otp', async(req,res)=>{
  const phone=req.body.phone;
  if(!phone || phone.length!==10){
    return res.json({success:false});
@@ -138,6 +137,7 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
