@@ -63,33 +63,46 @@ app.post('/webhook/order', async(req,res)=>{
 })
 
 /* CART OTP */
-app.post('/send-cart-otp', async(req,res)=>{
+app.post('/apps/otp/send-cart-otp', async(req,res)=>{
 
- const phone=req.body.phone
+ const phone=req.body.phone;
  if(!phone || phone.length!==10){
- return res.json({success:false});
-}
- const otp=genOtp()
- 
+   return res.json({success:false});
+ }
 
- OTP["cart_"+phone]={otp,time:Date.now()}
+ const otp=genOtp();
 
- await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"v3",
-  sender_id:"FSTSMS",
-  message:`Your Skypper OTP is ${otp}`,
-  language:"english",
-  flash:0,
-  numbers:phone
- },{
-  headers:{
-   authorization:process.env.SMS_API_KEY,
-   "Content-Type":"application/json"
-  }
- })
+ console.log("PHONE:", phone);
+ console.log("OTP:", otp);
 
- res.json({success:true})
-})
+ OTP["cart_"+phone]={otp,time:Date.now()};
+
+ try{
+
+   const response = await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+     route:"v3",
+     sender_id:"FSTSMS",
+     message:`Your Skypper OTP is ${otp}`,
+     language:"english",
+     flash:0,
+     numbers:phone
+   },{
+     headers:{
+       authorization:process.env.SMS_API_KEY,
+       "Content-Type":"application/json"
+     }
+   });
+
+   console.log("SMS RESPONSE:", response.data);
+
+ }catch(err){
+
+   console.log("SMS ERROR:", err.response?.data || err.message);
+
+ }
+
+ res.json({success:true});
+});
 
 /* VERIFY */
 app.post('/verify', async(req,res)=>{
@@ -125,6 +138,7 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
