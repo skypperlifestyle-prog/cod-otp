@@ -46,14 +46,15 @@ app.post('/webhook/order', async(req,res)=>{
  OTP[order.id]={otp,time:Date.now()}
 
 await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"dlt",
-  sender_id:"SKYPPR",
-  template_id:"1201175350686304903",
-  variables_values: otp.toString(),
-  numbers: phone
+ route: "dlt",
+ sender_id: "SKYPPR",
+ message: "206657",
+ variables_values: otp.toString(),
+ numbers: phone,
+ dlt_content_template_id: "1207176101128509773"
 },{
  headers:{
-  authorization:process.env.SMS_API_KEY,
+  authorization: process.env.SMS_API_KEY,
   "Content-Type":"application/json"
  }
 });
@@ -63,6 +64,7 @@ await axios.post("https://www.fast2sms.com/dev/bulkV2",{
 
 /* CART OTP */
 app.post('/send-cart-otp', async(req,res)=>{
+
  const phone=req.body.phone;
  if(!phone || phone.length!==10){
    return res.json({success:false});
@@ -77,31 +79,28 @@ app.post('/send-cart-otp', async(req,res)=>{
 
  try{
 
-  const response = await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"otp",
-  variables_values: otp,
-  numbers: phone,
-  template_id: "1201175350686304903"
-},{
+ await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+   route: "dlt",
+   sender_id: "SKYPPR",
+   message: "206657",
+   variables_values: otp.toString(),
+   numbers: phone,
+   dlt_content_template_id: "1207176101128509773"
+ },{
   headers:{
-    authorization: process.env.SMS_API_KEY,
-    "Content-Type":"application/json"
+   authorization: process.env.SMS_API_KEY,
+   "Content-Type":"application/json"
   }
-});
+ });
 
-console.log("SMS RESPONSE:", response.data);
+ console.log("SMS SENT");
 
-   console.log("SMS RESPONSE:", response.data);
-
- }catch(err){
-
-   console.log("SMS ERROR:", err.response?.data || err.message);
-
- }
+}catch(err){
+ console.log("SMS ERROR:", err.response?.data || err.message);
+}
 
  res.json({success:true});
 });
-
 /* VERIFY */
 app.post('/verify', async(req,res)=>{
 
@@ -136,6 +135,7 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
