@@ -9,12 +9,6 @@ app.use((req,res,next)=>{
  console.log("HIT:",req.method,req.url);
  next();
 });
-app.use((req,res,next)=>{
- res.setHeader("Access-Control-Allow-Origin","*");
- res.setHeader("Access-Control-Allow-Headers","Content-Type");
- res.setHeader("Access-Control-Allow-Methods","POST,GET,OPTIONS");
- next();
-});
 app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
 app.use(bodyParser.json())
 
@@ -62,10 +56,14 @@ app.post('/webhook/order', async(req,res)=>{
 })
 
 /* CART OTP */
-app.post('/send-cart-otp', async(req,res)=>{
+app.post('/apps/otp/send-cart-otp', async(req,res)=>{
 
  const phone=req.body.phone
+ if(!phone || phone.length!==10){
+ return res.json({success:false});
+}
  const otp=genOtp()
+ 
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
@@ -87,7 +85,7 @@ app.post('/send-cart-otp', async(req,res)=>{
 })
 
 /* VERIFY */
-app.post('/verify', async(req,res)=>{
+app.post('/apps/otp/verify', async(req,res)=>{
 
  const {phone,otp,order_id}=req.body
 
@@ -120,5 +118,6 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
