@@ -5,7 +5,12 @@ const bodyParser = require('body-parser')
 const crypto = require('crypto')
 
 const app = express()
-
+app.use((req,res,next)=>{
+ res.setHeader("Access-Control-Allow-Origin","*");
+ res.setHeader("Access-Control-Allow-Headers","Content-Type");
+ res.setHeader("Access-Control-Allow-Methods","POST,GET,OPTIONS");
+ next();
+});
 app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
 app.use(bodyParser.json())
 
@@ -111,3 +116,4 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
