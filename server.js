@@ -46,15 +46,16 @@ app.post('/webhook/order', async(req,res)=>{
  OTP[order.id]={otp,time:Date.now()}
 
 await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"otp",
-  variables_values: otp,
-  numbers: phone,
-  template_id: "1201175350686304903"
+  route:"dlt",
+  sender_id:"SKYPPR",
+  template_id:"1201175350686304903",
+  variables_values: otp.toString(),
+  numbers: phone
 },{
-  headers:{
-    authorization: process.env.SMS_API_KEY,
-    "Content-Type":"application/json"
-  }
+ headers:{
+  authorization:process.env.SMS_API_KEY,
+  "Content-Type":"application/json"
+ }
 });
 
  res.sendStatus(200)
@@ -135,6 +136,7 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
