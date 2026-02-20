@@ -43,11 +43,35 @@ app.post('/webhook/order', async(req,res)=>{
 
  res.sendStatus(200)
 })
+app.use(bodyParser.json())
 
+app.post('/send-cart-otp', async(req,res)=>{
+
+ const phone=req.body.phone
+ const otp=Math.floor(100000 + Math.random()*900000)
+
+ OTP["cart_"+phone]=otp
+
+ await axios.get(process.env.SMS_URL,{
+   params:{
+    numbers:phone,
+    message:`Skypper OTP ${otp}`
+   }
+ })
+
+ res.json({success:true})
+})
+if(phone){
+ if(OTP["cart_"+phone]!=otp)
+   return res.json({success:false})
+
+ delete OTP["cart_"+phone]
+ return res.json({success:true})
+}
 /* VERIFY */
 app.post('/verify',bodyParser.json(),async(req,res)=>{
 
- const {order_id,otp}=req.body
+ const {phone,otp,order_id}=req.body
 
  if(OTP[order_id]!=otp) return res.json({success:false})
 
@@ -61,5 +85,6 @@ app.post('/verify',bodyParser.json(),async(req,res)=>{
 
  res.json({success:true})
 })
+
 
 app.listen(10000)
