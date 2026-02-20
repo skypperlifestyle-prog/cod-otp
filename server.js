@@ -5,6 +5,13 @@ const bodyParser = require('body-parser')
 const crypto = require('crypto')
 
 const app = express()
+app.get("/", (req,res)=>{
+  res.send("Skypper OTP Server Running");
+});
+
+app.get("/apps/otp", (req,res)=>{
+  res.send("Skypper OTP App Proxy Connected");
+});
 app.use((req,res,next)=>{
  console.log("HIT:",req.method,req.url);
  next();
@@ -118,6 +125,7 @@ app.post('/apps/otp/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
