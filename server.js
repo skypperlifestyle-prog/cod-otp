@@ -6,6 +6,10 @@ const crypto = require('crypto')
 
 const app = express()
 app.use((req,res,next)=>{
+ console.log("HIT:",req.method,req.url);
+ next();
+});
+app.use((req,res,next)=>{
  res.setHeader("Access-Control-Allow-Origin","*");
  res.setHeader("Access-Control-Allow-Headers","Content-Type");
  res.setHeader("Access-Control-Allow-Methods","POST,GET,OPTIONS");
@@ -116,4 +120,5 @@ app.post('/verify', async(req,res)=>{
 })
 
 app.listen(10000,()=>console.log("Server running"))
+
 
