@@ -1,4 +1,5 @@
 require('dotenv').config()
+const SMS_API = process.env.SMS_API_KEY;
 const express = require('express')
 const axios = require('axios')
 const bodyParser = require('body-parser')
@@ -133,8 +134,38 @@ app.post('/verify', async(req,res)=>{
 
  res.json({success:false})
 })
+async function sendSMS(phone, orderId){
 
+try{
+
+await fetch("https://www.fast2sms.com/dev/bulkV2",{
+method:"POST",
+headers:{
+"authorization": SMS_API,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+route:"q",
+numbers: phone,
+message:`Thank you for your order at SKYPER!
+
+Order ID: ${orderId}
+
+We will dispatch shortly.
+
+– Team Skypper`
+})
+});
+
+console.log("SMS Sent to", phone);
+
+}catch(err){
+console.log("SMS Error",err.message);
+}
+
+}
 app.listen(10000,()=>console.log("Server running"))
+
 
 
 
