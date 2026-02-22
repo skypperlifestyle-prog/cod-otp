@@ -6,10 +6,8 @@ const bodyParser = require('body-parser')
 const crypto = require('crypto')
 const mongoose = require("mongoose");
 const app = express()
-mongoose.connect(process.env.MONGO,{
- useNewUrlParser:true,
- useUnifiedTopology:true
-}).then(()=>console.log("Mongo Connected"))
+mongoose.connect(process.env.MONGO)
+.then(()=>console.log("Mongo Connected"))
 .catch(err=>console.log("Mongo Error",err));
 app.get("/", (req,res)=>{
   res.send("Skypper OTP Server Running");
