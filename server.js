@@ -56,21 +56,63 @@ function generateInvoice(order,gst,gstName,gstNumber){
 
  if(!fs.existsSync("./invoices")) fs.mkdirSync("./invoices");
 
- const doc=new PDF();
+ const doc = new PDF({margin:40});
  doc.pipe(fs.createWriteStream(`invoices/${order.id}.pdf`));
 
- doc.fontSize(18).text("TAX INVOICE");
- doc.moveDown();
-
- doc.text("Order: "+order.name);
- doc.text("GSTIN: "+gstNumber);
- doc.text("Business: "+gstName);
+ // HEADER
+ doc.fontSize(20).text("SKYPPER LIFESTYLE",40,40);
+ doc.fontSize(10).text("Your Company Address\nGSTIN: 10ABCDE1234F1Z5",{align:"right"});
 
  doc.moveDown();
- doc.text("Total: ₹"+order.total_price);
- doc.text("IGST: ₹"+gst.igst.toFixed(2));
- doc.text("CGST: ₹"+gst.cgst.toFixed(2));
- doc.text("SGST: ₹"+gst.sgst.toFixed(2));
+
+ // INVOICE META
+ doc.fontSize(12).text(`Invoice No: SKY/${order.order_number}`);
+ doc.text(`Date: ${new Date().toLocaleDateString()}`);
+
+ doc.moveDown();
+
+ // BUYER
+ doc.text("Bill To:");
+ doc.text(`${gstName || order.shipping_address.name}`);
+ doc.text(`GSTIN: ${gstNumber || "N/A"}`);
+ doc.text(`${order.shipping_address.address1}`);
+ doc.text(`${order.shipping_address.city}, ${order.shipping_address.province}`);
+
+ doc.moveDown();
+
+ // TABLE HEADER
+ doc.fontSize(11);
+ doc.text("Item",40);
+ doc.text("Qty",250);
+ doc.text("Rate",300);
+ doc.text("Total",380);
+
+ doc.moveDown();
+
+ let y = doc.y;
+
+ order.line_items.forEach(i=>{
+   doc.text(i.title,40,y);
+   doc.text(i.quantity.toString(),250,y);
+   doc.text((i.price).toString(),300,y);
+   doc.text((i.quantity*i.price).toFixed(2),380,y);
+   y+=20;
+ });
+
+ doc.moveDown();
+
+ // TOTALS
+ doc.text(`Subtotal: ₹${order.total_price}`);
+ doc.text(`IGST: ₹${gst.igst.toFixed(2)}`);
+ doc.text(`CGST: ₹${gst.cgst.toFixed(2)}`);
+ doc.text(`SGST: ₹${gst.sgst.toFixed(2)}`);
+
+ doc.moveDown();
+ doc.fontSize(14).text(`Grand Total: ₹${order.total_price}`,{align:"right"});
+
+ doc.moveDown(2);
+
+ doc.fontSize(10).text("Authorized Signatory",{align:"right"});
 
  doc.end();
 }
