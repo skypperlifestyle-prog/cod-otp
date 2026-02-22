@@ -19,6 +19,7 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order",OrderSchema);
 const app = express()
+app.use(bodyParser.json())
 app.use("/invoices", express.static("invoices"));
 mongoose.connect(process.env.MONGO)
 .then(()=>console.log("Mongo Connected"))
@@ -37,7 +38,7 @@ app.use((req,res,next)=>{
 });
 
 app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
-app.use(bodyParser.json())
+
 
 const OTP = {}
 
