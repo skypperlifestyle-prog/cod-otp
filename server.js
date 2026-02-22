@@ -1,4 +1,5 @@
 require('dotenv').config()
+const SMS_API = process.env.SMS_API_KEY;
 const express = require('express')
 const axios = require('axios')
 const bodyParser = require('body-parser')
@@ -6,7 +7,21 @@ const crypto = require('crypto')
 
 const app = express()
 
-app.use(bodyParser.raw({type:'application/json'}))
+app.get("/", (req,res)=>{
+  res.send("Skypper OTP Server Running");
+});
+
+app.get("/apps/otp", (req,res)=>{
+  res.send("Skypper OTP App Proxy Connected");
+});
+
+app.use((req,res,next)=>{
+ console.log("HIT:",req.method,req.url);
+ next();
+});
+
+app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
+app.use(bodyParser.json())
 
 const OTP = {}
 
@@ -14,7 +29,7 @@ function genOtp(){
  return Math.floor(100000 + Math.random()*900000)
 }
 
-/* WEBHOOK */
+/* COD WEBHOOK */
 app.post('/webhook/order', async(req,res)=>{
 
  const hmac=req.headers['x-shopify-hmac-sha256']
@@ -27,39 +42,96 @@ app.post('/webhook/order', async(req,res)=>{
  const order=JSON.parse(req.body)
 
  if(!order.payment_gateway_names.some(g=>g.toLowerCase().includes('cash')))
-   return res.sendStatus(200)
+  return res.sendStatus(200)
 
  const phone=order.shipping_address.phone.replace('+91','')
  const otp=genOtp()
 
- OTP[order.id]=otp
+ OTP[order.id]={otp,time:Date.now()}
 
- await axios.get(process.env.SMS_URL,{
-   params:{
-     numbers:phone,
-     message:`Skypper OTP ${otp}`
-   }
+ await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+   route: "dlt",
+   sender_id: "SKYPPR",
+   message: "206657",
+   variables_values: otp.toString(),
+   numbers: phone,
+   dlt_content_template_id: "1207176101128509773"
+ },{
+  headers:{
+   authorization: process.env.SMS_API_KEY,
+   "Content-Type":"application/json"
+  }
  })
 
  res.sendStatus(200)
 })
 
-/* VERIFY */
-app.post('/verify',bodyParser.json(),async(req,res)=>{
+/* CART OTP */
+app.post('/send-cart-otp', async(req,res)=>{
 
- const {order_id,otp}=req.body
+ const phone=req.body.phone;
+ if(!phone || phone.length!==10){
+   return res.json({success:false});
+ }
 
- if(OTP[order_id]!=otp) return res.json({success:false})
+ const otp=genOtp()
 
- delete OTP[order_id]
+ OTP["cart_"+phone]={otp,time:Date.now()}
 
- await axios.put(
- `https://${process.env.SHOP}/admin/api/2024-01/orders/${order_id}.json`,
- {order:{id:order_id,tags:"COD-Verified"}},
- {headers:{"X-Shopify-Access-Token":process.env.TOKEN}}
- )
+ try{
+
+ await axios.post("https://www.fast2sms.com/dev/bulkV2",{
+   route: "dlt",
+   sender_id: "SKYPPR",
+   message: "206657",
+   variables_values: otp.toString(),
+   numbers: phone,
+   dlt_content_template_id: "1207176101128509773"
+ },{
+  headers:{
+   authorization: process.env.SMS_API_KEY,
+   "Content-Type":"application/json"
+  }
+ })
+
+ }catch(err){
+  console.log("SMS ERROR:", err.response?.data || err.message)
+ }
 
  res.json({success:true})
 })
 
-app.listen(10000)
+/* VERIFY */
+app.post('/verify', async(req,res)=>{
+
+ const {phone,otp,order_id}=req.body
+
+ if(phone){
+  const rec=OTP["cart_"+phone]
+  if(!rec||rec.otp!=otp||(Date.now()-rec.time)>300000)
+   return res.json({success:false})
+
+  delete OTP["cart_"+phone]
+  return res.json({success:true})
+ }
+
+ if(order_id){
+  const rec=OTP[order_id]
+  if(!rec||rec.otp!=otp||(Date.now()-rec.time)>300000)
+   return res.json({success:false})
+
+  delete OTP[order_id]
+
+  await axios.put(
+   `https://${process.env.SHOP}/admin/api/2024-01/orders/${order_id}.json`,
+   {order:{id:order_id,tags:"COD-Verified"}},
+   {headers:{"X-Shopify-Access-Token":process.env.TOKEN}}
+  )
+
+  return res.json({success:true})
+ }
+
+ res.json({success:false})
+})
+
+app.listen(10000,()=>console.log("Server running"))
