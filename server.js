@@ -5,6 +5,19 @@ const axios = require('axios')
 const bodyParser = require('body-parser')
 const crypto = require('crypto')
 const mongoose = require("mongoose");
+const OrderSchema = new mongoose.Schema({
+ order_id:String,
+ invoice_no:String,
+ gstNumber:String,
+ gstName:String,
+ total:Number,
+ igst:Number,
+ cgst:Number,
+ sgst:Number,
+ created:Date
+});
+
+const Order = mongoose.model("Order",OrderSchema);
 const app = express()
 mongoose.connect(process.env.MONGO)
 .then(()=>console.log("Mongo Connected"))
@@ -30,7 +43,37 @@ const OTP = {}
 function genOtp(){
  return Math.floor(100000 + Math.random()*900000)
 }
+function gstBreakup(amount,type){
+ if(type==="IGST"){
+  return{igst:amount*0.18,cgst:0,sgst:0}
+ }
+ return{igst:0,cgst:amount*0.09,sgst:amount*0.09}
+}
+const PDF = require("pdfkit");
+const fs = require("fs");
 
+function generateInvoice(order,gst,gstName,gstNumber){
+
+ if(!fs.existsSync("./invoices")) fs.mkdirSync("./invoices");
+
+ const doc=new PDF();
+ doc.pipe(fs.createWriteStream(`invoices/${order.id}.pdf`));
+
+ doc.fontSize(18).text("TAX INVOICE");
+ doc.moveDown();
+
+ doc.text("Order: "+order.name);
+ doc.text("GSTIN: "+gstNumber);
+ doc.text("Business: "+gstName);
+
+ doc.moveDown();
+ doc.text("Total: ₹"+order.total_price);
+ doc.text("IGST: ₹"+gst.igst.toFixed(2));
+ doc.text("CGST: ₹"+gst.cgst.toFixed(2));
+ doc.text("SGST: ₹"+gst.sgst.toFixed(2));
+
+ doc.end();
+}
 /* COD WEBHOOK */
 app.post('/webhook/order', async(req,res)=>{
 
@@ -135,5 +178,64 @@ app.post('/verify', async(req,res)=>{
 
  res.json({success:false})
 })
+app.post("/shopify/order-paid",async(req,res)=>{
 
+const order=req.body;
+
+const gstNumber = order.note_attributes?.find(x=>x.name==="GST Number")?.value || "";
+const gstName = order.note_attributes?.find(x=>x.name==="GST Business Name")?.value || "";
+
+const STORE_STATE="BR"; // Bihar
+const customerState=order.shipping_address?.province_code;
+
+let type="IGST";
+if(customerState===STORE_STATE) type="CGST";
+
+const gst=gstBreakup(Number(order.total_price),type);
+
+await Order.create({
+ order_id:order.id,
+ invoice_no:"SKY-"+order.order_number,
+ gstNumber,
+ gstName,
+ total:order.total_price,
+ igst:gst.igst,
+ cgst:gst.cgst,
+ sgst:gst.sgst,
+ created:new Date()
+});
+
+generateInvoice(order,gst,gstName,gstNumber);
+
+res.send("OK");
+
+});
+const Excel = require("exceljs");
+
+app.get("/gst/excel",async(req,res)=>{
+
+const orders=await Order.find();
+
+const wb=new Excel.Workbook();
+const ws=wb.addWorksheet("GST");
+
+ws.addRow(["Invoice","GSTIN","Name","Total","IGST","CGST","SGST"]);
+
+orders.forEach(o=>{
+ws.addRow([
+o.invoice_no,
+o.gstNumber,
+o.gstName,
+o.total,
+o.igst,
+o.cgst,
+o.sgst
+]);
+});
+
+res.setHeader("Content-Disposition","attachment; filename=gst.xlsx");
+await wb.xlsx.write(res);
+res.end();
+
+});
 app.listen(10000,()=>console.log("Server running"))
