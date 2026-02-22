@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
-const bodyParser = require("body-parser");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 const PDF = require("pdfkit");
@@ -9,6 +8,19 @@ const fs = require("fs");
 const Excel = require("exceljs");
 
 const app = express();
+
+/* ================= RAW BODY CAPTURE (SHOPIFY SAFE) ================= */
+
+const rawBodySaver = (req, res, buf) => {
+  if (buf && buf.length) req.rawBody = buf;
+};
+
+app.use(express.json({ verify: rawBodySaver }));
+app.use(express.urlencoded({ verify: rawBodySaver, extended: true }));
+
+/* ================= STATIC ================= */
+
+app.use("/invoices", express.static("invoices"));
 
 /* ================= MONGO ================= */
 
@@ -30,32 +42,46 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order",OrderSchema);
 
-/* ================= STATIC ================= */
+/* ================= BASIC ================= */
 
-app.use("/invoices", express.static("invoices"));
+app.get("/",(_,res)=>res.send("Skypper OTP Server Running"));
+app.get("/apps/otp",(_,res)=>res.send("Skypper OTP App Proxy Connected"));
 
-/* ================= COD WEBHOOK (RAW BODY) ================= */
+app.use((req,res,next)=>{
+ console.log("HIT:",req.method,req.url);
+ next();
+});
 
-app.post("/webhook/order", bodyParser.raw({type:"application/json"}), async(req,res)=>{
+/* ================= OTP ================= */
+
+const OTP={};
+
+function genOtp(){
+ return Math.floor(100000+Math.random()*900000);
+}
+
+/* ================= COD WEBHOOK ================= */
+
+app.post("/webhook/order",async(req,res)=>{
 
  try{
 
  const hmac=req.headers["x-shopify-hmac-sha256"];
 
  const digest=crypto.createHmac("sha256",process.env.WEBHOOK_SECRET)
- .update(req.body)
+ .update(req.rawBody)
  .digest("base64");
 
  if(hmac!==digest) return res.sendStatus(401);
 
- const order=JSON.parse(req.body.toString());
+ const order=req.body;
 
  if(!order.payment_gateway_names.some(g=>g.toLowerCase().includes("cash")))
   return res.sendStatus(200);
 
  const phone=order.shipping_address.phone.replace("+91","");
 
- const otp=Math.floor(100000+Math.random()*900000);
+ const otp=genOtp();
 
  await axios.post("https://www.fast2sms.com/dev/bulkV2",{
  route:"dlt",
@@ -80,27 +106,7 @@ app.post("/webhook/order", bodyParser.raw({type:"application/json"}), async(req,
 
 });
 
-/* ================= JSON FOR EVERYTHING ELSE ================= */
-
-app.use(express.json());
-
-/* ================= BASIC ROUTES ================= */
-
-app.get("/",(_,res)=>res.send("Skypper OTP Server Running"));
-app.get("/apps/otp",(_,res)=>res.send("Skypper OTP App Proxy Connected"));
-
-app.use((req,res,next)=>{
- console.log("HIT:",req.method,req.url);
- next();
-});
-
-/* ================= OTP CART ================= */
-
-const OTP={};
-
-function genOtp(){
- return Math.floor(100000+Math.random()*900000);
-}
+/* ================= CART OTP ================= */
 
 app.post("/send-cart-otp",async(req,res)=>{
 
@@ -127,7 +133,7 @@ app.post("/send-cart-otp",async(req,res)=>{
  res.json({success:true});
 });
 
-/* ================= VERIFY OTP ================= */
+/* ================= VERIFY ================= */
 
 app.post("/verify",async(req,res)=>{
 
@@ -143,7 +149,7 @@ app.post("/verify",async(req,res)=>{
  res.json({success:true});
 });
 
-/* ================= GST HELPERS ================= */
+/* ================= GST ================= */
 
 function gstBreakup(amount,type){
  if(type==="IGST") return {igst:amount*0.18,cgst:0,sgst:0};
@@ -192,7 +198,7 @@ function generateInvoice(order,gst,gstName,gstNumber){
  doc.end();
 }
 
-/* ================= SHOPIFY PAID ================= */
+/* ================= ORDER PAID ================= */
 
 app.post("/shopify/order-paid",async(req,res)=>{
 
