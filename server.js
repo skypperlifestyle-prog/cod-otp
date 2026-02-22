@@ -19,6 +19,7 @@ const OrderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order",OrderSchema);
 const app = express()
+app.use("/invoices", express.static("invoices"));
 mongoose.connect(process.env.MONGO)
 .then(()=>console.log("Mongo Connected"))
 .catch(err=>console.log("Mongo Error",err));
