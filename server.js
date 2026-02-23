@@ -107,7 +107,7 @@ app.post('/send-cart-otp', async(req,res)=>{
    message: "206657",
    variables_values: otp.toString(),
    numbers: phone,
-   dlt_content_template_id: "1207176101128509773"
+   dlt_content_template_id: "1207177164946897291"
  },{
   headers:{
    authorization: process.env.SMS_API_KEY,
