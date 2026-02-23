@@ -10,17 +10,17 @@ const app = express()
 /* ================= BASIC SETUP ================= */
 
 app.get("/", (req,res)=>{
-  res.send("Skypper OTP Server Running");
-});
+  res.send("Skypper OTP Server Running")
+})
 
 app.get("/apps/otp", (req,res)=>{
-  res.send("Skypper OTP App Proxy Connected");
-});
+  res.send("Skypper OTP App Proxy Connected")
+})
 
 app.use((req,res,next)=>{
- console.log("HIT:",req.method,req.url);
- next();
-});
+ console.log("HIT:",req.method,req.url)
+ next()
+})
 
 app.use(bodyParser.json())
 app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
@@ -31,6 +31,43 @@ const OTP = {}
 
 function genOtp(){
  return Math.floor(100000 + Math.random()*900000)
+}
+
+/* ================= COMMON SMS FUNCTION ================= */
+
+async function sendOtpSMS(phone, otp){
+
+ try{
+
+   const response = await axios.post(
+     "https://www.fast2sms.com/dev/bulkV2",
+     {
+       route: "dlt",
+       sender_id: "SKYPPR",
+
+       message: "Dear Customer, your OTP is {#VAR#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+
+       variables: "VAR",
+       variables_values: otp.toString(),
+
+       numbers: phone,
+       dlt_content_template_id: "1207177164946897291"
+     },
+     {
+       headers:{
+         authorization: process.env.SMS_API_KEY,
+         "Content-Type":"application/json"
+       }
+     }
+   )
+
+   console.log("SMS SENT:", response.data)
+   return true
+
+ }catch(err){
+   console.log("SMS ERROR:", err.response?.data || err.message)
+   return false
+ }
 }
 
 /* ================= SHOPIFY COD WEBHOOK ================= */
@@ -52,26 +89,16 @@ app.post('/webhook/order', async(req,res)=>{
  if(!order.payment_gateway_names.some(g=>g.toLowerCase().includes('cash')))
   return res.sendStatus(200)
 
- const phone=order.shipping_address.phone.replace('+91','')
- const otp=genOtp()
+ if(!order.shipping_address.phone) return res.sendStatus(200)
+
+ const phone = order.shipping_address.phone.replace(/\D/g,'').slice(-10)
+ const otp = genOtp()
 
  OTP[order.id]={otp,time:Date.now()}
 
- await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-   route: "dlt",
-   sender_id: "SKYPPR",
-   message: "206657",
-   variables_values: otp.toString(),
-   numbers: phone,
-   dlt_content_template_id: "1207177164946897291"
- },{
-  headers:{
-   authorization: process.env.SMS_API_KEY,
-   "Content-Type":"application/json"
-  }
- })
+ const sent = await sendOtpSMS(phone, otp)
 
- console.log("COD OTP SENT:", phone)
+ if(sent) console.log("COD OTP SENT:", phone)
 
  res.sendStatus(200)
 
@@ -86,40 +113,24 @@ app.post('/webhook/order', async(req,res)=>{
 
 app.post('/send-cart-otp', async(req,res)=>{
 
- const phone=req.body.phone;
+ const phone = req.body.phone?.replace(/\D/g,'').slice(-10)
 
  if(!phone || phone.length!==10){
-   return res.json({success:false});
+   return res.json({success:false})
  }
 
- const otp=genOtp()
+ const otp = genOtp()
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
  console.log("PHONE:", phone)
  console.log("OTP:", otp)
 
- try{
+ const sent = await sendOtpSMS(phone, otp)
 
- await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-   route: "dlt",
-   sender_id: "SKYPPR",
-   message: "206657",
-   variables_values: otp.toString(),
-   numbers: phone,
-   dlt_content_template_id: "1207177164946897291"
- },{
-  headers:{
-   authorization: process.env.SMS_API_KEY,
-   "Content-Type":"application/json"
-  }
- })
+ if(!sent) return res.json({success:false})
 
  console.log("CART OTP SENT")
-
- }catch(err){
-  console.log("SMS ERROR:", err.response?.data || err.message)
- }
 
  res.json({success:true})
 
@@ -134,12 +145,13 @@ app.post('/verify', async(req,res)=>{
  /* CART VERIFY */
  if(phone){
 
-  const rec=OTP["cart_"+phone]
+  const cleanPhone = phone.replace(/\D/g,'').slice(-10)
+  const rec=OTP["cart_"+cleanPhone]
 
   if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000)
    return res.json({success:false})
 
-  delete OTP["cart_"+phone]
+  delete OTP["cart_"+cleanPhone]
 
   return res.json({success:true})
  }
@@ -165,37 +177,6 @@ app.post('/verify', async(req,res)=>{
 
  res.json({success:false})
 })
-
-/* ================= ORDER SUCCESS SMS ================= */
-
-async function sendSMS(phone, orderId){
-
- try{
-
- await axios.post("https://www.fast2sms.com/dev/bulkV2",{
-  route:"q",
-  numbers: phone,
-  message:`Thank you for your order at SKYPER!
-
-Order ID: ${orderId}
-
-We will dispatch shortly.
-
-– Team Skypper`
- },{
-  headers:{
-   authorization: process.env.SMS_API_KEY,
-   "Content-Type":"application/json"
-  }
- })
-
- console.log("SUCCESS SMS SENT", phone)
-
- }catch(err){
-  console.log("SUCCESS SMS ERROR",err.message)
- }
-
-}
 
 /* ================= SERVER ================= */
 
