@@ -33,7 +33,7 @@ function genOtp(){
  return Math.floor(100000 + Math.random()*900000)
 }
 
-/* ================= COMMON SMS FUNCTION ================= */
+/* ================= SEND OTP SMS ================= */
 
 async function sendOtpSMS(phone, otp){
 
@@ -45,13 +45,15 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       message: "Dear Customer, your OTP is {#VAR#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
 
-       variables: "VAR",
+       variables: "var",
        variables_values: otp.toString(),
 
        numbers: phone,
-       dlt_content_template_id: "1207177164946897291"
+
+       dlt_content_template_id: "1207177164946897291",
+       dlt_entity_id: "1201175350686304903"
      },
      {
        headers:{
@@ -142,7 +144,6 @@ app.post('/verify', async(req,res)=>{
 
  const {phone,otp,order_id}=req.body
 
- /* CART VERIFY */
  if(phone){
 
   const cleanPhone = phone.replace(/\D/g,'').slice(-10)
@@ -156,7 +157,6 @@ app.post('/verify', async(req,res)=>{
   return res.json({success:true})
  }
 
- /* COD VERIFY */
  if(order_id){
 
   const rec=OTP[order_id]
