@@ -7,7 +7,7 @@ const cors = require('cors')
 
 const app = express()
 
-/* ================= BASIC SETUP ================= */
+/* ================= BASIC ================= */
 
 app.use(cors())
 app.use(bodyParser.json())
@@ -21,7 +21,7 @@ app.use((req,res,next)=>{
  next()
 })
 
-/* ================= MEMORY OTP STORE ================= */
+/* ================= OTP MEMORY ================= */
 
 const OTP = {}
 
@@ -29,11 +29,9 @@ function genOtp(){
  return Math.floor(100000 + Math.random()*900000)
 }
 
-/* ================= SEND OTP SMS ================= */
+/* ================= FAST2SMS DLT ================= */
 
 async function sendOtpSMS(phone, otp){
-
- console.log("DLT TEMPLATE ID:", process.env.DLT_TEMPLATE_ID)
 
  try{
 
@@ -43,18 +41,11 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+       // YOUR APPROVED TEMPLATE
+       template_id: "1207177164946897291",
 
-       variables: "var",
        variables_values: otp.toString(),
-
-       numbers: phone,
-
-       // TEMPLATE ID
-       dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
-
-       // ENTITY ID
-       dlt_entity_id: "1201175350686304903"
+       numbers: phone
      },
      {
        headers:{
@@ -72,18 +63,6 @@ async function sendOtpSMS(phone, otp){
    return false
  }
 }
-
-/* ================= TEST SMS ================= */
-
-app.get('/test-sms', async(req,res)=>{
-
- const phone = "PUT_YOUR_OWN_NUMBER"
- const otp = "123456"
-
- const ok = await sendOtpSMS(phone, otp)
-
- res.json({success: ok})
-})
 
 /* ================= CART OTP ================= */
 
@@ -109,19 +88,20 @@ app.post('/send-cart-otp', async(req,res)=>{
  res.json({success:true})
 })
 
-/* ================= VERIFY OTP ================= */
+/* ================= VERIFY ================= */
 
 app.post('/verify', async(req,res)=>{
 
- const {phone,otp}=req.body
+ const phone = req.body.phone?.replace(/\D/g,'').slice(-10)
+ const otp = req.body.otp
 
- const cleanPhone = phone.replace(/\D/g,'').slice(-10)
- const rec=OTP["cart_"+cleanPhone]
+ const rec = OTP["cart_"+phone]
 
- if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000)
+ if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000){
    return res.json({success:false})
+ }
 
- delete OTP["cart_"+cleanPhone]
+ delete OTP["cart_"+phone]
 
  return res.json({success:true})
 })
