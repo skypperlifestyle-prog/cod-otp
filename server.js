@@ -13,17 +13,12 @@ app.get("/", (req,res)=>{
   res.send("Skypper OTP Server Running")
 })
 
-app.get("/apps/otp", (req,res)=>{
-  res.send("Skypper OTP App Proxy Connected")
-})
-
 app.use((req,res,next)=>{
  console.log("HIT:",req.method,req.url)
  next()
 })
 
 app.use(bodyParser.json())
-app.use('/webhook/order', bodyParser.raw({ type: 'application/json' }))
 
 /* ================= MEMORY OTP STORE ================= */
 
@@ -37,7 +32,7 @@ function genOtp(){
 
 async function sendOtpSMS(phone, otp){
 
- console.log("DLT TEMPLATE:", process.env.DLT_TEMPLATE_ID)
+ console.log("DLT TEMPLATE ID:", process.env.DLT_TEMPLATE_ID)
 
  try{
 
@@ -47,14 +42,17 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPER LIFESTYLE PVT. LTD.",
+       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
 
        variables: "var",
        variables_values: otp.toString(),
 
        numbers: phone,
 
+       // TEMPLATE ID (NOT ENTITY)
        dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
+
+       // ENTITY ID (FIXED)
        dlt_entity_id: "1201175350686304903"
      },
      {
@@ -81,37 +79,9 @@ app.get('/test-sms', async(req,res)=>{
  const phone = "YOUR_10_DIGIT_NUMBER"
  const otp = "123456"
 
- try{
+ const ok = await sendOtpSMS(phone, otp)
 
- const result = await axios.post(
-  "https://www.fast2sms.com/dev/bulkV2",
-  {
-    route:"dlt",
-    sender_id:"SKYPPR",
-
-    message:"Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPER LIFESTYLE PVT. LTD.",
-
-    variables:"var",
-    variables_values: otp,
-
-    numbers: phone,
-
-    dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
-    dlt_entity_id:"1201175350686304903"
-  },
-  {
-    headers:{
-     authorization: process.env.SMS_API_KEY,
-     "Content-Type":"application/json"
-    }
-  })
-
- res.json(result.data)
-
- }catch(e){
-  res.json(e.response?.data || e.message)
- }
-
+ res.json({success: ok})
 })
 
 /* ================= CART OTP ================= */
@@ -128,11 +98,31 @@ app.post('/send-cart-otp', async(req,res)=>{
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
+ console.log("PHONE:", phone)
+ console.log("OTP:", otp)
+
  const sent = await sendOtpSMS(phone, otp)
 
  if(!sent) return res.json({success:false})
 
  res.json({success:true})
+})
+
+/* ================= VERIFY OTP ================= */
+
+app.post('/verify', async(req,res)=>{
+
+ const {phone,otp}=req.body
+
+ const cleanPhone = phone.replace(/\D/g,'').slice(-10)
+ const rec=OTP["cart_"+cleanPhone]
+
+ if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000)
+   return res.json({success:false})
+
+ delete OTP["cart_"+cleanPhone]
+
+ return res.json({success:true})
 })
 
 /* ================= SERVER ================= */
