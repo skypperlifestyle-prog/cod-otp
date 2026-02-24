@@ -37,6 +37,8 @@ function genOtp(){
 
 async function sendOtpSMS(phone, otp){
 
+ console.log("DLT TEMPLATE:", process.env.DLT_TEMPLATE_ID)
+
  try{
 
    const response = await axios.post(
@@ -45,10 +47,9 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       // DLT APPROVED TEMPLATE (AUTO FILL)
-       message: "Your Skypper OTP is {#alphanumeric#}. Do not share it with anyone.\n\n@skypper.in #{#alphanumeric#}",
+       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPER LIFESTYLE PVT. LTD.",
 
-       variables: "alphanumeric",
+       variables: "var",
        variables_values: otp.toString(),
 
        numbers: phone,
@@ -73,41 +74,42 @@ async function sendOtpSMS(phone, otp){
  }
 }
 
-/* ================= SHOPIFY COD WEBHOOK ================= */
+/* ================= TEST SMS ================= */
 
-app.post('/webhook/order', async(req,res)=>{
+app.get('/test-sms', async(req,res)=>{
+
+ const phone = "YOUR_10_DIGIT_NUMBER"
+ const otp = "123456"
 
  try{
 
- const hmac=req.headers['x-shopify-hmac-sha256']
+ const result = await axios.post(
+  "https://www.fast2sms.com/dev/bulkV2",
+  {
+    route:"dlt",
+    sender_id:"SKYPPR",
 
- const digest=crypto.createHmac('sha256',process.env.WEBHOOK_SECRET)
- .update(req.body,'utf8')
- .digest('base64')
+    message:"Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPER LIFESTYLE PVT. LTD.",
 
- if(hmac!==digest) return res.sendStatus(401)
+    variables:"var",
+    variables_values: otp,
 
- const order=JSON.parse(req.body)
+    numbers: phone,
 
- if(!order.payment_gateway_names.some(g=>g.toLowerCase().includes('cash')))
-  return res.sendStatus(200)
+    dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
+    dlt_entity_id:"1201175350686304903"
+  },
+  {
+    headers:{
+     authorization: process.env.SMS_API_KEY,
+     "Content-Type":"application/json"
+    }
+  })
 
- if(!order.shipping_address.phone) return res.sendStatus(200)
+ res.json(result.data)
 
- const phone = order.shipping_address.phone.replace(/\D/g,'').slice(-10)
- const otp = genOtp()
-
- OTP[order.id]={otp,time:Date.now()}
-
- const sent = await sendOtpSMS(phone, otp)
-
- if(sent) console.log("COD OTP SENT:", phone)
-
- res.sendStatus(200)
-
- }catch(err){
-  console.log("Webhook Error:",err.message)
-  res.sendStatus(200)
+ }catch(e){
+  res.json(e.response?.data || e.message)
  }
 
 })
@@ -126,57 +128,11 @@ app.post('/send-cart-otp', async(req,res)=>{
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
- console.log("PHONE:", phone)
- console.log("OTP:", otp)
-
  const sent = await sendOtpSMS(phone, otp)
 
  if(!sent) return res.json({success:false})
 
- console.log("CART OTP SENT")
-
  res.json({success:true})
-
-})
-
-/* ================= VERIFY OTP ================= */
-
-app.post('/verify', async(req,res)=>{
-
- const {phone,otp,order_id}=req.body
-
- if(phone){
-
-  const cleanPhone = phone.replace(/\D/g,'').slice(-10)
-  const rec=OTP["cart_"+cleanPhone]
-
-  if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000)
-   return res.json({success:false})
-
-  delete OTP["cart_"+cleanPhone]
-
-  return res.json({success:true})
- }
-
- if(order_id){
-
-  const rec=OTP[order_id]
-
-  if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000)
-   return res.json({success:false})
-
-  delete OTP[order_id]
-
-  await axios.put(
-   `https://${process.env.SHOP}/admin/api/2024-01/orders/${order_id}.json`,
-   {order:{id:order_id,tags:"COD-Verified"}},
-   {headers:{"X-Shopify-Access-Token":process.env.TOKEN}}
-  )
-
-  return res.json({success:true})
- }
-
- res.json({success:false})
 })
 
 /* ================= SERVER ================= */
