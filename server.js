@@ -3,13 +3,9 @@ require('dotenv').config()
 const express = require('express')
 const axios = require('axios')
 const bodyParser = require('body-parser')
-const cors = require('cors')
 
 const app = express()
 
-/* ================= BASIC ================= */
-
-app.use(cors())
 app.use(bodyParser.json())
 
 app.get("/", (req,res)=>{
@@ -35,7 +31,7 @@ async function sendOtpSMS(phone, otp){
 
  console.log("SENDING TO:", phone)
  console.log("OTP:", otp)
- console.log("TEMPLATE:", process.env.1207177164946897291)
+ console.log("TEMPLATE:", process.env.DLT_TEMPLATE_ID)
 
  try{
 
@@ -44,21 +40,13 @@ async function sendOtpSMS(phone, otp){
      {
        route: "dlt",
        sender_id: "SKYPPR",
-
-       // MUST MATCH YOUR APPROVED TEMPLATE
-       message: "Dear Customer, your OTP for confirming your Cash on Delivery order is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
-
-       variables: "var",
+       template_id: process.env.DLT_TEMPLATE_ID,
        variables_values: otp.toString(),
-
-       numbers: phone,
-
-       // YOUR APPROVED TEMPLATE
-       template_id: process.env.1207177164946897291
+       numbers: phone
      },
      {
        headers:{
-         authorization: process.env.uCPGDhRsb5Dh42WWfbD86EEoI4MhzG4Pzxqm9Yg8KYMG5fNAtHkACzvbR5Wh,
+         authorization: process.env.SMS_API_KEY,
          "Content-Type":"application/json"
        }
      }
@@ -82,7 +70,7 @@ app.post('/send-cart-otp', async(req,res)=>{
  const phone = req.body.phone?.replace(/\D/g,'').slice(-10)
 
  if(!phone || phone.length!==10){
-   return res.json({success:false,message:"Invalid phone"})
+   return res.json({success:false})
  }
 
  const otp = genOtp()
@@ -92,7 +80,7 @@ app.post('/send-cart-otp', async(req,res)=>{
  const sent = await sendOtpSMS(phone, otp)
 
  if(!sent){
-   return res.json({success:false,message:"SMS failed"})
+   return res.json({success:false})
  }
 
  res.json({success:true})
@@ -105,19 +93,9 @@ app.post('/verify', async(req,res)=>{
  const phone=req.body.phone?.replace(/\D/g,'').slice(-10)
  const otp=req.body.otp
 
- if(!phone || !otp) return res.json({success:false})
-
  const rec=OTP["cart_"+phone]
 
- if(!rec){
-   return res.json({success:false})
- }
-
- if(rec.otp!=otp){
-   return res.json({success:false})
- }
-
- if((Date.now()-rec.time)>300000){
+ if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000){
    return res.json({success:false})
  }
 
@@ -125,7 +103,5 @@ app.post('/verify', async(req,res)=>{
 
  return res.json({success:true})
 })
-
-/* ================= START ================= */
 
 app.listen(10000,()=>console.log("OTP Server Running on 10000"))
