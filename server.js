@@ -45,14 +45,15 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+       // DLT APPROVED TEMPLATE (AUTO FILL)
+       message: "Your Skypper OTP is {#alphanumeric#}. Do not share it with anyone.\n\n@skypper.in #{#alphanumeric#}",
 
-       variables: "var",
+       variables: "alphanumeric",
        variables_values: otp.toString(),
 
        numbers: phone,
 
-       dlt_content_template_id: "1207177164946897291",
+       dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
        dlt_entity_id: "1201175350686304903"
      },
      {
