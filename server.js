@@ -17,7 +17,7 @@ app.use((req,res,next)=>{
  next()
 })
 
-/* ================= MEMORY OTP STORE ================= */
+/* ================= MEMORY STORE ================= */
 
 const OTP = {}
 
@@ -29,10 +29,6 @@ function genOtp(){
 
 async function sendOtpSMS(phone, otp){
 
- console.log("PHONE:", phone)
- console.log("OTP:", otp)
- console.log("TEMPLATE:", process.env.DLT_TEMPLATE_ID)
-
  try{
 
    const response = await axios.post(
@@ -41,16 +37,14 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       // EXACT approved template
-       message: "Dear Customer, your OTP for confirming your Cash on Delivery order is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+       // THIS MUST MATCH APPROVED TEMPLATE TEXT
+       message: "Dear Customer, your OTP is {#var#}. Please do not share this OTP with anyone.",
 
-       variables: "var",
        variables_values: otp.toString(),
-
        numbers: phone,
 
-       // DLT TEMPLATE
-       template_id: process.env.DLT_TEMPLATE_ID
+       // YOUR TEMPLATE ID
+       dlt_content_template_id: process.env.DLT_TEMPLATE_ID
      },
      {
        headers:{
@@ -61,17 +55,15 @@ async function sendOtpSMS(phone, otp){
    )
 
    console.log("FAST2SMS:", response.data)
-
-   return response.data?.return === true
+   return true
 
  }catch(err){
-
-   console.log("SMS ERROR:", err.response?.data || err.message)
+   console.log("FAST2SMS ERROR:", err.response?.data || err.message)
    return false
  }
 }
 
-/* ================= CART OTP ================= */
+/* ================= SEND CART OTP ================= */
 
 app.post('/send-cart-otp', async(req,res)=>{
 
@@ -85,6 +77,8 @@ app.post('/send-cart-otp', async(req,res)=>{
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
+ console.log("PHONE:",phone,"OTP:",otp)
+
  const sent = await sendOtpSMS(phone, otp)
 
  if(!sent){
@@ -94,26 +88,22 @@ app.post('/send-cart-otp', async(req,res)=>{
  res.json({success:true})
 })
 
-/* ================= VERIFY OTP ================= */
+/* ================= VERIFY ================= */
 
 app.post('/verify', async(req,res)=>{
 
  const phone=req.body.phone?.replace(/\D/g,'').slice(-10)
  const otp=req.body.otp
 
- if(!phone || !otp) return res.json({success:false})
-
  const rec=OTP["cart_"+phone]
 
  if(!rec) return res.json({success:false})
-
  if(rec.otp!=otp) return res.json({success:false})
-
  if((Date.now()-rec.time)>300000) return res.json({success:false})
 
  delete OTP["cart_"+phone]
 
- return res.json({success:true})
+ res.json({success:true})
 })
 
 /* ================= START ================= */
