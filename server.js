@@ -21,7 +21,7 @@ app.use((req,res,next)=>{
  next()
 })
 
-/* ================= OTP MEMORY ================= */
+/* ================= MEMORY OTP STORE ================= */
 
 const OTP = {}
 
@@ -33,6 +33,10 @@ function genOtp(){
 
 async function sendOtpSMS(phone, otp){
 
+ console.log("SENDING TO:", phone)
+ console.log("OTP:", otp)
+ console.log("TEMPLATE:", process.env.DLT_TEMPLATE_ID)
+
  try{
 
    const response = await axios.post(
@@ -41,11 +45,16 @@ async function sendOtpSMS(phone, otp){
        route: "dlt",
        sender_id: "SKYPPR",
 
-       // YOUR APPROVED TEMPLATE
-       template_id: "1207177164946897291",
+       // MUST MATCH YOUR APPROVED TEMPLATE
+       message: "Dear Customer, your OTP for confirming your Cash on Delivery order is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
 
+       variables: "var",
        variables_values: otp.toString(),
-       numbers: phone
+
+       numbers: phone,
+
+       // YOUR APPROVED TEMPLATE
+       template_id: process.env.DLT_TEMPLATE_ID
      },
      {
        headers:{
@@ -55,11 +64,13 @@ async function sendOtpSMS(phone, otp){
      }
    )
 
-   console.log("SMS SENT:", response.data)
-   return true
+   console.log("FAST2SMS RESPONSE:", response.data)
+
+   return response.data?.return === true
 
  }catch(err){
-   console.log("SMS ERROR:", err.response?.data || err.message)
+
+   console.log("FAST2SMS ERROR:", err.response?.data || err.message)
    return false
  }
 }
@@ -71,19 +82,18 @@ app.post('/send-cart-otp', async(req,res)=>{
  const phone = req.body.phone?.replace(/\D/g,'').slice(-10)
 
  if(!phone || phone.length!==10){
-   return res.json({success:false})
+   return res.json({success:false,message:"Invalid phone"})
  }
 
  const otp = genOtp()
 
  OTP["cart_"+phone]={otp,time:Date.now()}
 
- console.log("PHONE:", phone)
- console.log("OTP:", otp)
-
  const sent = await sendOtpSMS(phone, otp)
 
- if(!sent) return res.json({success:false})
+ if(!sent){
+   return res.json({success:false,message:"SMS failed"})
+ }
 
  res.json({success:true})
 })
@@ -92,12 +102,22 @@ app.post('/send-cart-otp', async(req,res)=>{
 
 app.post('/verify', async(req,res)=>{
 
- const phone = req.body.phone?.replace(/\D/g,'').slice(-10)
- const otp = req.body.otp
+ const phone=req.body.phone?.replace(/\D/g,'').slice(-10)
+ const otp=req.body.otp
 
- const rec = OTP["cart_"+phone]
+ if(!phone || !otp) return res.json({success:false})
 
- if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000){
+ const rec=OTP["cart_"+phone]
+
+ if(!rec){
+   return res.json({success:false})
+ }
+
+ if(rec.otp!=otp){
+   return res.json({success:false})
+ }
+
+ if((Date.now()-rec.time)>300000){
    return res.json({success:false})
  }
 
@@ -106,6 +126,6 @@ app.post('/verify', async(req,res)=>{
  return res.json({success:true})
 })
 
-/* ================= SERVER ================= */
+/* ================= START ================= */
 
 app.listen(10000,()=>console.log("OTP Server Running on 10000"))
