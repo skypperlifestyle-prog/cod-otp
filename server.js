@@ -3,11 +3,14 @@ require('dotenv').config()
 const express = require('express')
 const axios = require('axios')
 const bodyParser = require('body-parser')
-const crypto = require('crypto')
+const cors = require('cors')
 
 const app = express()
 
 /* ================= BASIC SETUP ================= */
+
+app.use(cors())
+app.use(bodyParser.json())
 
 app.get("/", (req,res)=>{
   res.send("Skypper OTP Server Running")
@@ -17,8 +20,6 @@ app.use((req,res,next)=>{
  console.log("HIT:",req.method,req.url)
  next()
 })
-
-app.use(bodyParser.json())
 
 /* ================= MEMORY OTP STORE ================= */
 
@@ -49,10 +50,10 @@ async function sendOtpSMS(phone, otp){
 
        numbers: phone,
 
-       // TEMPLATE ID (NOT ENTITY)
+       // TEMPLATE ID
        dlt_content_template_id: process.env.DLT_TEMPLATE_ID,
 
-       // ENTITY ID (FIXED)
+       // ENTITY ID
        dlt_entity_id: "1201175350686304903"
      },
      {
@@ -76,7 +77,7 @@ async function sendOtpSMS(phone, otp){
 
 app.get('/test-sms', async(req,res)=>{
 
- const phone = "YOUR_10_DIGIT_NUMBER"
+ const phone = "PUT_YOUR_OWN_NUMBER"
  const otp = "123456"
 
  const ok = await sendOtpSMS(phone, otp)
