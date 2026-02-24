@@ -2,11 +2,11 @@ require('dotenv').config()
 
 const express = require('express')
 const axios = require('axios')
-const bodyParser = require('body-parser')
 
 const app = express()
+app.use(express.json())
 
-app.use(bodyParser.json())
+/* ================= BASIC ================= */
 
 app.get("/", (req,res)=>{
   res.send("Skypper OTP Server Running")
@@ -29,7 +29,7 @@ function genOtp(){
 
 async function sendOtpSMS(phone, otp){
 
- console.log("SENDING TO:", phone)
+ console.log("PHONE:", phone)
  console.log("OTP:", otp)
  console.log("TEMPLATE:", process.env.DLT_TEMPLATE_ID)
 
@@ -40,9 +40,17 @@ async function sendOtpSMS(phone, otp){
      {
        route: "dlt",
        sender_id: "SKYPPR",
-       template_id: process.env.DLT_TEMPLATE_ID,
+
+       // EXACT approved template
+       message: "Dear Customer, your OTP for confirming your Cash on Delivery order is {#var#}. Please do not share this OTP with anyone. -SKYPPER LIFESTYLE PVT. LTD.",
+
+       variables: "var",
        variables_values: otp.toString(),
-       numbers: phone
+
+       numbers: phone,
+
+       // DLT TEMPLATE
+       template_id: process.env.DLT_TEMPLATE_ID
      },
      {
        headers:{
@@ -52,13 +60,13 @@ async function sendOtpSMS(phone, otp){
      }
    )
 
-   console.log("FAST2SMS RESPONSE:", response.data)
+   console.log("FAST2SMS:", response.data)
 
    return response.data?.return === true
 
  }catch(err){
 
-   console.log("FAST2SMS ERROR:", err.response?.data || err.message)
+   console.log("SMS ERROR:", err.response?.data || err.message)
    return false
  }
 }
@@ -86,22 +94,28 @@ app.post('/send-cart-otp', async(req,res)=>{
  res.json({success:true})
 })
 
-/* ================= VERIFY ================= */
+/* ================= VERIFY OTP ================= */
 
 app.post('/verify', async(req,res)=>{
 
  const phone=req.body.phone?.replace(/\D/g,'').slice(-10)
  const otp=req.body.otp
 
+ if(!phone || !otp) return res.json({success:false})
+
  const rec=OTP["cart_"+phone]
 
- if(!rec || rec.otp!=otp || (Date.now()-rec.time)>300000){
-   return res.json({success:false})
- }
+ if(!rec) return res.json({success:false})
+
+ if(rec.otp!=otp) return res.json({success:false})
+
+ if((Date.now()-rec.time)>300000) return res.json({success:false})
 
  delete OTP["cart_"+phone]
 
  return res.json({success:true})
 })
+
+/* ================= START ================= */
 
 app.listen(10000,()=>console.log("OTP Server Running on 10000"))
