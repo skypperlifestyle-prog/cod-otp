@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 require('dotenv').config()
 const express = require('express')
 const axios = require('axios')
@@ -194,16 +193,3 @@ console.log("SMS Error",err.message);
 
 }
 app.listen(10000,()=>console.log("Server running"))
-
-
-
-
-
-
-
-
-
-
-
-
->>>>>>> 44904da22b02686fbdc331422720a5597e0d9a4f
