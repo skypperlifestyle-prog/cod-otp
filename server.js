@@ -35,7 +35,7 @@ async function sendOtpSMS(phone, otp){
 
  console.log("SENDING TO:", phone)
  console.log("OTP:", otp)
- console.log("TEMPLATE:", process.env.DLT_TEMPLATE_ID)
+ console.log("TEMPLATE:", process.env.1207177164946897291)
 
  try{
 
@@ -54,11 +54,11 @@ async function sendOtpSMS(phone, otp){
        numbers: phone,
 
        // YOUR APPROVED TEMPLATE
-       template_id: process.env.DLT_TEMPLATE_ID
+       template_id: process.env.1207177164946897291
      },
      {
        headers:{
-         authorization: process.env.SMS_API_KEY,
+         authorization: process.env.uCPGDhRsb5Dh42WWfbD86EEoI4MhzG4Pzxqm9Yg8KYMG5fNAtHkACzvbR5Wh,
          "Content-Type":"application/json"
        }
      }
